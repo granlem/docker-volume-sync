@@ -24,11 +24,6 @@ if DEBUGGING:
 else:
     logging.basicConfig(level=logging.INFO)
 
-# Develpment tests
-os.environ["HOSTNAME"] = "volume-sync"
-os.environ["SYNC_INTERVAL"] = "5"
-os.environ["WAIT_BEFORE_SYNC"] = "5"
-
 # Application environments
 SYNC_INTERVAL = int(os.getenv('SYNC_INTERVAL', "0")) # MAX interval in seconds
 SYNC_TIMEOUT = int(os.getenv('SYNC_TIMEOUT', -1))
@@ -39,7 +34,7 @@ SYNC_TYPE = os.getenv('SYNC_TYPE', SYNC_TYPES[0]).upper() # Sync type for distri
 if not SYNC_TYPE in SYNC_TYPES:
     logging.info("%s is no valid sync type. Set to default %s" % (SYNC_TYPE, SYNC_TYPE[0]))
     SYNC_TYPE = SYNC_TYPES[0]
-WAIT_BEFORE_SYNC = int(os.getenv('WAIT_BEFORE_SYNC', "300")) # Wait before servers are ready
+WAIT_BEFORE_SYNC = int(os.getenv('WAIT_BEFORE_SYNC', "10")) # Wait before servers are ready
 SYNC_FOLDER = os.getenv('SYNC_FOLDER', "/volumes")
 ADDITIONAL_OPTIONS = shlex.split(os.getenv('SYNC_FOLDER', ""))
 
