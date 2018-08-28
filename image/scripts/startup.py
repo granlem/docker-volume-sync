@@ -10,14 +10,19 @@ import time
 import sys
 
 # Application constants
+DEV_NULL = open(os.devnull, 'w')
 SYNC_TYPES = ["NEXT", "FIRST", "ALL"]
-VERBOSE = logging.DEBUG
-SYNC_SERVER_PORT=2222
+SYNC_SERVER_PORT = 2222
 SYNC_SERVER = ["unison","-socket", str(SYNC_SERVER_PORT)]
-SYNC_CLIENT = ["unison", "-auto", "-batch"]
+SYNC_CLIENT = ["unison", "-auto", "-batch", "-ignorearchives"]
 
 # Pre setting
-logging.basicConfig(level=VERBOSE)
+DEBUGGING = int(os.getenv('DEBUG', "0"))
+if DEBUGGING:
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug("Debugging log level is enabled")
+else:
+    logging.basicConfig(level=logging.INFO)
 
 # Develpment tests
 os.environ["HOSTNAME"] = "volume-sync"
@@ -25,21 +30,22 @@ os.environ["SYNC_INTERVAL"] = "5"
 os.environ["WAIT_BEFORE_SYNC"] = "5"
 
 # Application environments
-SYNC_INTERVAL = int(os.getenv('SYNC_INTERVAL', "300")) # MAX interval in seconds
-SYNC_TIMEOUT = int(os.getenv('WAIT_TIMEOUT', -1))
+SYNC_INTERVAL = int(os.getenv('SYNC_INTERVAL', "0")) # MAX interval in seconds
+SYNC_TIMEOUT = int(os.getenv('SYNC_TIMEOUT', -1))
 if SYNC_TIMEOUT < 0:
     SYNC_TIMEOUT = None
 HOSTNAME_GROUP = os.getenv('HOSTNAME', 'sync')
-logging.debug(("Group hostname is %s") % HOSTNAME_GROUP)
 SYNC_TYPE = os.getenv('SYNC_TYPE', SYNC_TYPES[0]).upper() # Sync type for distributed sync
 if not SYNC_TYPE in SYNC_TYPES:
+    logging.info("%s is no valid sync type. Set to default %s" % (SYNC_TYPE, SYNC_TYPE[0]))
     SYNC_TYPE = SYNC_TYPES[0]
-server_process = None
-logging.debug(("SYNC_TYPE of container is %s") % SYNC_TYPE)
 WAIT_BEFORE_SYNC = int(os.getenv('WAIT_BEFORE_SYNC', "300")) # Wait before servers are ready
 SYNC_FOLDER = os.getenv('SYNC_FOLDER', "/volumes")
 ADDITIONAL_OPTIONS = shlex.split(os.getenv('SYNC_FOLDER', ""))
+
+# Vars
 shutdown = False
+server_process = None
 
 def get_group_ips():
     # Get the ips of all replicas without that of this container
@@ -69,7 +75,7 @@ def check_sync_server():
 def start_sync_server():
     global server_process
     args = SYNC_SERVER
-    server_process = subprocess.Popen(args, stdout=subprocess.PIPE)
+    server_process = subprocess.Popen(args)
     logging.debug("Sync server started with args: %s" % args)
 
 def try_kill_process(process):
@@ -82,7 +88,9 @@ def try_kill_process(process):
 def sync():
     sync_source = SYNC_FOLDER
     all_sync_ips = get_sorted_group_ips()
+    logging.debug("Group ips are %s" % all_sync_ips)
     container_ip = get_container_ip()
+    logging.debug("Container ip is %s" % container_ip)
     container_ip_pos = all_sync_ips.index(container_ip)
     # This container must be part of the network
     if container_ip_pos < 0:
@@ -107,32 +115,37 @@ def sync():
         return
 
     for sync_ip in sync_ips:
+        # Cancel when shutdown
+        global shutdown
+        if shutdown:
+            return
+
         sync_target = "socket://%s:%s/%s" % (sync_ip, SYNC_SERVER_PORT, SYNC_FOLDER)
         args = SYNC_CLIENT + ADDITIONAL_OPTIONS + [sync_source] + [sync_target]
         logging.info("Running sync (Timeout: %s) with args: %s " % (SYNC_TIMEOUT, args))
-        sync_process = subprocess.Popen(args, stdout=subprocess.PIPE)
-        sync_process.wait(timeout=SYNC_TIMEOUT)
-        if (server_process.poll() != None):
+        pipe = None if DEBUGGING else subprocess.DEVNULL
+        sync_process = subprocess.Popen(args, stdout=pipe, stderr=pipe)
+        returncode = sync_process.wait(timeout = SYNC_TIMEOUT)
+        if (returncode == None):
             logging.warn("Could not finish sync in timeout %s" % SYNC_TIMEOUT)
-        stdout = sync_process.communicate()[0]
-        logging.debug("Sync stdout: %s" % stdout)
-        try_kill_process(sync_process)
-
+            try_kill_process(sync_process)
+        logging.debug("Sync process stopped with exit code %s" % returncode)
 
 ## MAIN
 start_sync_server()
 time.sleep(WAIT_BEFORE_SYNC)
 
 lastSync = time.time()
-while True:
+while not shutdown:
     check_sync_server()
     if (time.time()-lastSync > SYNC_INTERVAL):
         logging.debug("Now syncing")
         lastSync = time.time()
         sync()
-    nextSync = SYNC_INTERVAL- (time.time()-lastSync)
+    nextSync = SYNC_INTERVAL - (time.time()-lastSync)
     if nextSync > 0:
         logging.debug("Next sync in %ss" % nextSync)
         time.sleep(nextSync)
 
+# Shutdown server
 try_kill_process(server_process)
