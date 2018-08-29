@@ -14,11 +14,11 @@ DEV_NULL = open(os.devnull, 'w')
 SYNC_TYPES = ["NEXT", "FIRST", "ALL"]
 SYNC_SERVER_PORT = 2222
 SYNC_SERVER = ["unison","-socket", str(SYNC_SERVER_PORT)]
-SYNC_CLIENT = ["unison", "-auto", "-batch", "-ignorearchives"]
+SYNC_CLIENT = ["unison", "-auto", "-batch", "-ignorearchives","-fastcheck",\
+               "-group","-owner","-prefer=newer","-silent","-times"]
 
 # Pre setting
-DEBUGGING = int(os.getenv('DEBUG', "0"))
-if DEBUGGING:
+if os.getenv('DEBUG'):
     logging.basicConfig(level=logging.DEBUG)
     logging.debug("Debugging log level is enabled")
 else:
@@ -37,6 +37,8 @@ if not SYNC_TYPE in SYNC_TYPES:
 WAIT_BEFORE_SYNC = int(os.getenv('WAIT_BEFORE_SYNC', "10")) # Wait before servers are ready
 SYNC_FOLDER = os.getenv('SYNC_FOLDER', "/volumes")
 ADDITIONAL_OPTIONS = shlex.split(os.getenv('SYNC_FOLDER', ""))
+if os.getenv('ONLY_ADDITIONAL_OPTIONS'):
+    SYNC_CLIENT = ["unison"]
 
 # Vars
 shutdown = False
@@ -118,8 +120,7 @@ def sync():
         sync_target = "socket://%s:%s/%s" % (sync_ip, SYNC_SERVER_PORT, SYNC_FOLDER)
         args = SYNC_CLIENT + ADDITIONAL_OPTIONS + [sync_source] + [sync_target]
         logging.info("Running sync (Timeout: %s) with args: %s " % (SYNC_TIMEOUT, args))
-        pipe = None if DEBUGGING else subprocess.DEVNULL
-        sync_process = subprocess.Popen(args, stdout=pipe, stderr=pipe)
+        sync_process = subprocess.Popen(args)
         returncode = sync_process.wait(timeout = SYNC_TIMEOUT)
         if (returncode == None):
             logging.warn("Could not finish sync in timeout %s" % SYNC_TIMEOUT)
