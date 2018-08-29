@@ -14,7 +14,7 @@ DEV_NULL = open(os.devnull, 'w')
 SYNC_TYPES = ["NEXT", "FIRST", "ALL"]
 SYNC_SERVER_PORT = 2222
 SYNC_SERVER = ["unison","-socket", str(SYNC_SERVER_PORT)]
-SYNC_CLIENT = ["unison", "-auto", "-batch", "-ignorearchives","-fastcheck",\
+SYNC_CLIENT = ["unison", "-auto", "-batch","-fastcheck",\
                "-group","-owner","-prefer=newer","-silent","-times"]
 
 # Pre setting
