@@ -36,7 +36,7 @@ if not SYNC_TYPE in SYNC_TYPES:
     SYNC_TYPE = SYNC_TYPES[0]
 WAIT_BEFORE_SYNC = int(os.getenv('WAIT_BEFORE_SYNC', "10")) # Wait before servers are ready
 SYNC_FOLDER = os.getenv('SYNC_FOLDER', "/volumes")
-ADDITIONAL_OPTIONS = shlex.split(os.getenv('SYNC_FOLDER', ""))
+ADDITIONAL_OPTIONS = shlex.split(os.getenv('ADDITIONAL_OPTIONS', ""))
 if os.getenv('ONLY_ADDITIONAL_OPTIONS'):
     SYNC_CLIENT = ["unison"]
 
@@ -46,7 +46,7 @@ server_process = None
 
 def get_group_ips():
     # Get the ips of all replicas without that of this container
-    sync_group_ips = socket.gethostbyname_ex(HOSTNAME_GROUP)[2]
+    sync_group_ips = socket.gethostbyname_ex(HOSTNAME_GROUP + ".")[2]
     logging.debug(("IPs of group are %s") % sync_group_ips)
     if sync_group_ips is None:
         sync_group_ips = []
@@ -58,7 +58,7 @@ def get_sorted_group_ips():
     return sorted(group_ips, key=lambda ip: struct.unpack("!L", socket.inet_aton(ip))[0])
 
 def get_container_ip():
-    return socket.gethostbyname(socket.gethostname())
+    return socket.gethostbyname_ex(socket.gethostname()+".")[2][0]
 
 def check_sync_server():
     # Shutdown if sync server has stopped
@@ -88,6 +88,8 @@ def sync():
     logging.debug("Group ips are %s" % all_sync_ips)
     container_ip = get_container_ip()
     logging.debug("Container ip is %s" % container_ip)
+    if container_ip not in all_sync_ips:
+        logging.error("IP of Container %s not part of group %s. Do you have all connected the hosts via network?" % (container_ip, all_sync_ips))
     container_ip_pos = all_sync_ips.index(container_ip)
     # This container must be part of the network
     if container_ip_pos < 0:
