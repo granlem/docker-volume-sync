@@ -17,8 +17,7 @@ SYNC_SERVER_PORT = 2222
 SYNC_SERVER = ["unison","-socket", str(SYNC_SERVER_PORT)]
 SYNC_CLIENT = ["unison", "-auto", "-batch","-fastcheck",\
                "-group","-owner","-prefer=newer","-silent",\
-               "-times","-confirmbigdel=false", "confirmmerge=false"]
-
+               "-times","-confirmbigdel=false", "-confirmmerge=false"]
 # Pre setting
 if os.getenv('DEBUG'):
     logging.basicConfig(level=logging.DEBUG)
