@@ -6,6 +6,7 @@ import struct
 import logging
 import subprocess
 import shlex
+import shutil
 import time
 import sys
 
@@ -15,7 +16,8 @@ SYNC_TYPES = ["NEXT", "FIRST", "ALL"]
 SYNC_SERVER_PORT = 2222
 SYNC_SERVER = ["unison","-socket", str(SYNC_SERVER_PORT)]
 SYNC_CLIENT = ["unison", "-auto", "-batch","-fastcheck",\
-               "-group","-owner","-prefer=newer","-silent","-times"]
+               "-group","-owner","-prefer=newer","-silent",\
+               "-times","-confirmbigdel=false", "confirmmerge=false"]
 
 # Pre setting
 if os.getenv('DEBUG'):
@@ -68,6 +70,8 @@ def check_sync_server():
         logging.warn("Sync server is not running anymore. Shutting down!")
         SHUTDOWN = True
 
+def cleanup():
+    shutil.rmtree('/root/.unison', ignore_errors=True)
 
 def start_sync_server():
     global server_process
@@ -130,6 +134,7 @@ def sync():
         logging.debug("Sync process stopped with exit code %s" % returncode)
 
 ## MAIN
+cleanup()
 start_sync_server()
 time.sleep(WAIT_BEFORE_SYNC)
 
