@@ -1,0 +1,35 @@
+version: '3.3'
+
+services:
+  ssh:
+    image: krlmlr/debian-ssh:latest
+    restart: always
+    volumes:
+      - shared:/shared
+    ports:
+      - 22
+    environment:
+      SSH_KEY: ${SSH_KEY}
+
+  volume-sync:
+    image: granlem/volume-sync:latest
+    restart: always
+    volumes:
+      - shared:/volumes/shared
+    networks:
+      - volume-sync
+    environment:
+      HOSTNAME: volume-sync
+      SYNC_TYPE: NEXT
+      WAIT_BEFORE_SYNC: 20
+      DEBUG: 1
+    deploy:
+      mode: global
+      endpoint_mode: dnsrr
+      
+volumes:
+  shared:
+
+networks:
+  volume-sync:
+    driver: overlay
