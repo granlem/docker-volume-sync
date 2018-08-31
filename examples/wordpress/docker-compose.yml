@@ -1,0 +1,46 @@
+version: '3.3'
+
+services:
+  wordpress:
+    image: wordpress
+    restart: always
+    ports:
+      - 80
+    volumes:
+      - wp-content:/var/www/html/wp-content/
+    environment:
+      WORDPRESS_DB_PASSWORD: example
+    deploy:
+      replicas: 4 # change if you want
+
+
+  mysql:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+ 
+
+  volume-sync:
+    image: granlem/volume-sync:latest
+    restart: always
+    volumes:
+      - wp-content:/volumes/wp-content
+    networks:
+      - volume-sync
+    environment:
+      HOSTNAME: volume-sync
+      SYNC_TYPE: NEXT
+      WAIT_BEFORE_SYNC: 20
+      SYNC_INTERVAL: 20
+      DEBUG: 1
+    deploy:
+      mode: global
+      endpoint_mode: dnsrr
+      
+volumes:
+  wp-content:
+
+networks:
+  volume-sync:
+    driver: overlay
